@@ -1,16 +1,20 @@
+# lambda is updateKinesisFirehoseManifest
+# This one is good to go
+
 import json
 import boto3
 from datetime import datetime
 from calendar import monthrange
 
 s3 = boto3.resource('s3')
-s3_uri = 's3-us-east-1://page-tracking-firehose-records/'
+s3_prefix_uri = 's3-us-east-1://page-tracking-firehose-records/'
+s3_uri = 's3://page-tracking-firehose-records/'
 keys = []
 num_of_keys = [0]
 manifest = {
 	'fileLocations': [
 		{
-			'URIPrefixes': []
+			'URIPrefixes': [s3_prefix_uri]
 		},
 		{
 			'URIs': []
@@ -21,6 +25,7 @@ manifest = {
 	}
 }
 QUICKSIGHT_FILE_COMPUTATIONAL_LIMIT = 1000
+manifest_uri = 'kinesisFirehoseManifest.json'
 
 def lambda_handler(event, context):
 	# Compute URIPrefix(es) based on current day, month, and year
@@ -46,6 +51,7 @@ def lambda_handler(event, context):
 
 # Pulls in the latest URIs until the QUICKSIGHT_FILE_COMPUTATIONAL_LIMIT is reached
 def update_manifest_uri():
+	iteration = 0
 	fileLimitReached = False
 	current_month = datetime.today().month
 	current_year = datetime.today().year
@@ -53,37 +59,35 @@ def update_manifest_uri():
 	while not fileLimitReached:
 		
 		uri_month_prefix = '0' if current_month < 10 else ''
-		current_prefix = str(datetime.today().year) + '/' + uri_month_prefix + str(current_month) + '/'
+		current_prefix = str(current_year) + '/' + uri_month_prefix + str(current_month) + '/'
 		current_month_keys = []
 		get_matching_s3_keys(current_month_keys, 'page-tracking-firehose-records', current_prefix,)
+		
+		if (iteration != 0 and len(current_month_keys) == 0):
+			break
 
-		# Add URIPrefix if all the keys fit (computational limit) from the current month
-		if len(current_month_keys) <= (QUICKSIGHT_FILE_COMPUTATIONAL_LIMIT - num_of_keys[0]):
-			uri_prefix = s3_uri + current_prefix
-			manifest['fileLocations'][0]['URIPrefixes'].append(uri_prefix)
-			num_of_keys[0] = num_of_keys[0] + len(current_month_keys)
-			if num_of_keys[0] == QUICKSIGHT_FILE_COMPUTATIONAL_LIMIT:
+
+		for key in reversed(current_month_keys):
+			if num_of_keys[0] < QUICKSIGHT_FILE_COMPUTATIONAL_LIMIT:
+				uri = s3_uri + key
+				keys.append(uri)
+				num_of_keys[0] = num_of_keys[0] + 1
+				manifest['fileLocations'][1]['URIs'].append(uri)
+			else:
 				fileLimitReached = True
-		else:
-			for key in reversed(current_month_keys):
-				if num_of_keys[0] < QUICKSIGHT_FILE_COMPUTATIONAL_LIMIT:
-					uri = s3_uri + key
-					keys.append(uri)
-					num_of_keys[0] = num_of_keys[0] + 1
-					manifest['fileLocations'][1]['URIs'].append(uri)
-				else:
-					fileLimitReached = True
-					break
+				break
 
 		if current_month == 1:
 			current_month = 12
 			current_year = current_year - 1
+			iteration = iteration + 1
 		else:
 			current_month = current_month - 1
+			iteration = iteration + 1
 
 # Uploads manifest to Firehose bucket
 def upload_manifest_to_s3():
-	s3object = s3.Object('page-tracking-firehose-records', 'kinesisFirehoseManifest.json')
+	s3object = s3.Object('page-tracking-firehose-records', manifest_uri)
 	s3object.put(Body=(bytes(json.dumps(manifest).encode('UTF-8'))))
 
 # Get objects whose key starts with prefix

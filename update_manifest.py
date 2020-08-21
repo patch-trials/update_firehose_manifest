@@ -4,14 +4,14 @@ from datetime import datetime
 from calendar import monthrange
 
 s3 = boto3.resource('s3')
-s3_prefix_uri = 's3-us-east-1://pinpoint-kpi-data-bucket/'
-s3_uri = 's3://pinpoint-kpi-data-bucket/'
+s3_prefix_uri = ''
+s3_uri = ''
 keys = []
 num_of_keys = [0]
 manifest = {
 	'fileLocations': [
 		{
-			'URIPrefixes': [s3_prefix_uri]
+			'URIPrefixes': []
 		},
 		{
 			'URIs': []
@@ -22,9 +22,14 @@ manifest = {
 	}
 }
 QUICKSIGHT_FILE_COMPUTATIONAL_LIMIT = 1000
-manifest_uri = 'manifest.json'
+manifest_uri = ''
 
-def lambda_handler(event, context):
+def update_manifest(prefix_uri, uri, manifest_id):
+  s3_uri = uri
+  s3_prefix_uri = prefix_uri
+  manifest_uri = manifest_id
+  manifest_uri['fileLocations'][0]['URIPrefixes'].append(prefix_uri)
+
 	# Compute URIPrefix(es) based on current day, month, and year
 	# Update manifest URI's to past 30 days
 	# update_current_month_uri()
