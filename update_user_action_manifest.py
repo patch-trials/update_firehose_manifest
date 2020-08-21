@@ -4,7 +4,7 @@ from datetime import datetime
 from calendar import monthrange
 
 s3 = boto3.resource('s3')
-s3_uri = 's3-us-east-1://pinpoint-kpi-data-bucket/'
+s3_uri = 's3-us-east-1://patch-user-action-event-data/'
 keys = []
 num_of_keys = [0]
 manifest = {
@@ -55,7 +55,7 @@ def update_manifest_uri():
 		uri_month_prefix = '0' if current_month < 10 else ''
 		current_prefix = str(datetime.today().year) + '/' + uri_month_prefix + str(current_month) + '/'
 		current_month_keys = []
-		get_matching_s3_keys(current_month_keys, 'pinpoint-kpi-data-bucket', current_prefix,)
+		get_matching_s3_keys(current_month_keys, 'patch-user-action-event-data', current_prefix,)
 
 		# Add URIPrefix if all the keys fit (computational limit) from the current month
 		if len(current_month_keys) <= (QUICKSIGHT_FILE_COMPUTATIONAL_LIMIT - num_of_keys[0]):
@@ -83,7 +83,7 @@ def update_manifest_uri():
 
 # Uploads manifest to Firehose bucket
 def upload_manifest_to_s3():
-	s3object = s3.Object('pinpoint-kpi-data-bucket', 'manifest.json')
+	s3object = s3.Object('patch-user-action-event-data', 'manifest.json')
 	s3object.put(Body=(bytes(json.dumps(manifest).encode('UTF-8'))))
 
 # Get objects whose key starts with prefix
@@ -130,7 +130,7 @@ def update_current_month_uri():
 	current_month_uri = s3_uri + str(datetime.today().year) + '/' + uri_month_prefix + str(current_month) + '/'
 	prefix.append(current_month_uri[len(s3_uri):])
 	
-	get_matching_s3_keys('pinpoint-kpi-data-bucket', current_month_uri[len(s3_uri):], '')
+	get_matching_s3_keys('patch-user-action-event-data', current_month_uri[len(s3_uri):], '')
 	manifest['fileLocations'][0]['URIPrefixes'].append(current_month_uri)	
     	
 def update_prev_month_uri():    

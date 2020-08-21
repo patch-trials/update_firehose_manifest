@@ -4,7 +4,7 @@ from datetime import datetime
 from calendar import monthrange
 
 s3 = boto3.resource('s3')
-s3_uri = 's3://page-tracking-firehose-records/'
+s3_uri = 's3-us-east-1://page-tracking-firehose-records/'
 keys = []
 num_of_keys = [0]
 manifest = {
